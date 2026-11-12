@@ -34,7 +34,7 @@ mvn -f "d:\xem phim nè\cinema-booking-be\pom.xml" spring-boot:run
 1. Mở **Postman** -> Nhấn **Import**.
 2. Dán đường dẫn OpenAPI 3.0 của Backend vào ô URL:
    ```text
-   http://localhost:8080/v3/api-docs
+   http://localhost:8080/api-docs
    ```
    *(Hoặc xem giao diện Swagger UI trực tiếp trên trình duyệt tại `http://localhost:8080/swagger-ui.html`)*.
 

@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-display: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background-color: #faf8ff;
+    color: #0f172a;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6, .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+}
+
+/* Quy ước màu ghế rõ ràng theo HD.md */
+.seat-available {
+  background-color: #ffffff;
+  border: 2px solid #cbd5e1;
+  color: #1e293b;
+}
+.seat-available:hover {
+  border-color: #10b981;
+  background-color: #ecfdf5;
+}
+
+.seat-selected {
+  background-color: #10b981 !important;
+  border: 2px solid #059669 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
+  transform: scale(1.06);
+  z-index: 10;
+}
+
+.seat-locked {
+  background-color: #f59e0b !important;
+  border: 2px solid #d97706 !important;
+  color: #ffffff !important;
+}
+
+.seat-booked {
+  background-color: #ef4444 !important;
+  border: 2px solid #dc2626 !important;
+  color: #ffffff !important;
+  cursor: not-allowed !important;
+  opacity: 0.85;
+}
+
+/* Custom Curved Screen Glow & Ambient Stage Effect */
+.screen-curve {
+  position: relative;
+  height: 12px;
+  border-radius: 50% / 100% 100% 0 0;
+  background: linear-gradient(180deg, rgba(79, 70, 229, 0.9) 0%, rgba(99, 102, 241, 0.4) 60%, transparent 100%);
+  box-shadow: 0 -8px 24px -2px rgba(79, 70, 229, 0.35), 0 -2px 10px rgba(59, 130, 246, 0.2);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.cinema.booking.service.VoucherServiceTest
+-------------------------------------------------------------------------------
+Tests run: 18, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.116 s -- in com.cinema.booking.service.VoucherServiceTest

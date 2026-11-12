@@ -1,0 +1,25 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: cinema-booking-be
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/cinema_booking_db
+      auto-index-creation: true
+
+app:
+  jwt:
+    secret: CinemaBookingSecretKeyForJwtAuthentication2026SuperSecureKeyMustBeAtLeast256BitsLong
+    expiration-ms: 86400000
+  booking:
+    hold-duration-seconds: 600
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+

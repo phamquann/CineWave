@@ -1,0 +1,6 @@
+{
+  "name": "CineWave Digital Booking Experience",
+  "description": "High-energy cinema ticketing experience featuring interactive seat mapping, real-time showtime scheduling, concessions, and digital pass generation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

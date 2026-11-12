@@ -1,0 +1,1304 @@
+{
+  "info": {
+    "_postman_id": "cinema-booking-qa-automation-v2",
+    "name": "CineWave - Cinema Ticket Booking System (Full API & QA Automation Suite)",
+    "description": "Bộ Postman Collection đầy đủ cho dự án Hệ thống Đặt vé Xem phim (Spring Boot 3 + MongoDB + JWT).\n\nBao gồm 6 phân hệ & 32 kịch bản API + Automated Test Scripts (`pm.test`):\n1. Auth & RBAC (Đăng ký, Đăng nhập 4 Roles, Kiểm tra mật khẩu yếu, Trùng Email)\n2. Movies & Showtimes — Thuật toán 1 (Check trùng lịch 409 Conflict + Tự động sinh 56 ghế + Lazy Check)\n3. Core Booking & Hold Seats — Thuật toán 2 (Chống ghế lẻ Orphan Seat 400) & Thuật toán 3 (Atomic Seat Lock 409 + Boundary 0 ghế / 9 ghế)\n4. Vouchers — Thuật toán 4 (Decision Table: FIXED, PERCENT Capped, Expired, Future, SoldOut, MinOrder)\n5. Payment Webhook & QR Check-in (Giả lập thanh toán SUCCESS/FAILED, Sinh mã QR, Quét QR lần 1 = 200 OK, Quét QR lần 2 = 409 Conflict)\n6. Security Edge Case — Khóa tài khoản khi JWT còn hạn (403 Forbidden)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080/api", "type": "string" },
+    { "key": "adminToken", "value": "", "type": "string" },
+    { "key": "staffToken", "value": "", "type": "string" },
+    { "key": "customerToken", "value": "", "type": "string" },
+    { "key": "lockedUserToken", "value": "", "type": "string" },
+    { "key": "lockedUserId", "value": "", "type": "string" },
+    { "key": "movieId", "value": "", "type": "string" },
+    { "key": "createdMovieId", "value": "", "type": "string" },
+    { "key": "showtimeId", "value": "", "type": "string" },
+    { "key": "newShowtimeId", "value": "", "type": "string" },
+    { "key": "bookingId", "value": "", "type": "string" },
+    { "key": "cancelBookingId", "value": "", "type": "string" },
+    { "key": "qrCode", "value": "", "type": "string" },
+    { "key": "createdVoucherId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "01. Auth & RBAC (Xác thực & Phân quyền)",
+      "description": "Kiểm thử Đăng nhập 4 tài khoản mẫu (Admin, Staff, Customer, TestLock), Đăng ký tài khoản mới, Validate mật khẩu yếu (400), Email trùng (409) và lấy thông tin cá nhân (`/auth/me`).",
+      "item": [
+        {
+          "name": "1.1 Login Admin (Tự động lưu adminToken)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Trả về JWT accessToken và role ADMIN', function () {",
+                  "    pm.expect(res.data).to.have.property('accessToken');",
+                  "    pm.expect(res.data.user.role).to.eql('ADMIN');",
+                  "    pm.collectionVariables.set('adminToken', res.data.accessToken);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@cinema.com\",\n  \"password\": \"Admin@123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "1.2 Login Staff (Tự động lưu staffToken)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Trả về JWT accessToken và role STAFF', function () {",
+                  "    pm.expect(res.data).to.have.property('accessToken');",
+                  "    pm.expect(res.data.user.role).to.eql('STAFF');",
+                  "    pm.collectionVariables.set('staffToken', res.data.accessToken);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"staff@cinema.com\",\n  \"password\": \"Staff@123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "1.3 Login Customer (Tự động lưu customerToken)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Trả về JWT accessToken và role CUSTOMER', function () {",
+                  "    pm.expect(res.data).to.have.property('accessToken');",
+                  "    pm.expect(res.data.user.role).to.eql('CUSTOMER');",
+                  "    pm.collectionVariables.set('customerToken', res.data.accessToken);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer@cinema.com\",\n  \"password\": \"Customer@123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "1.4 Login TestLock User (Lưu lockedUserToken & lockedUserId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Lưu lockedUserToken và lockedUserId để test kịch bản khóa tài khoản', function () {",
+                  "    pm.expect(res.data).to.have.property('accessToken');",
+                  "    pm.collectionVariables.set('lockedUserToken', res.data.accessToken);",
+                  "    pm.collectionVariables.set('lockedUserId', res.data.user.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testlock@cinema.com\",\n  \"password\": \"Test@1234\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "1.5 [Negative] Register - Mật khẩu yếu thiếu chữ hoa/số (400 Bad Request)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Trả về 400 Bad Request khi mật khẩu không đủ độ phức tạp', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"weakpass@cinema.com\",\n  \"password\": \"123456\",\n  \"fullName\": \"Weak Password User\",\n  \"phone\": \"0909111222\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "1.6 [Negative] Register - Email đã tồn tại (409 Conflict)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Trả về 409 Conflict khi đăng ký trùng Email', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer@cinema.com\",\n  \"password\": \"Customer@123\",\n  \"fullName\": \"Duplicate Customer\",\n  \"phone\": \"0909333444\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "1.7 Get Current User Profile (/auth/me)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Trả về đúng email customer@cinema.com', function () {",
+                  "    pm.expect(res.data.email).to.eql('customer@cinema.com');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "1.8 [Admin] Lấy danh sách toàn bộ Users (/auth/users)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Danh sách có tối thiểu 4 tài khoản mẫu', function () {",
+                  "    pm.expect(res.data.length).to.be.at.least(4);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "users"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02. Movies & Showtimes — Thuật toán 1 (Check trùng lịch & Tự sinh 56 ghế)",
+      "description": "Kiểm thử danh mục 16 bộ phim, thêm/sửa phim (Admin), lấy sơ đồ 56 ghế kèm Lazy Check mở khóa ghế quá hạn, và Thuật toán 1: Kiểm tra trùng lịch chiếu `newStart < existingEnd AND newEnd > existingStart` (409 Conflict).",
+      "item": [
+        {
+          "name": "2.1 Get All Movies (Tự động lưu movieId đầu tiên)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Trả về danh sách phim và lưu movieId', function () {",
+                  "    pm.expect(res.data).to.be.an('array').that.is.not.empty;",
+                  "    pm.collectionVariables.set('movieId', res.data[0].id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/movies",
+              "host": ["{{baseUrl}}"],
+              "path": ["movies"]
+            }
+          }
+        },
+        {
+          "name": "2.2 Get Movie Detail By ID (/movies/{{movieId}})",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Có đầy đủ thông tin tên phim, thời lượng, posterUrl, trailerVideoUrl', function () {",
+                  "    pm.expect(res.data).to.have.property('title');",
+                  "    pm.expect(res.data).to.have.property('durationMinutes');",
+                  "    pm.expect(res.data).to.have.property('posterUrl');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/movies/{{movieId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["movies", "{{movieId}}"]
+            }
+          }
+        },
+        {
+          "name": "2.3 [Admin] Create New Movie (201 Created)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Lưu createdMovieId', function () {",
+                  "    pm.expect(res.data).to.have.property('id');",
+                  "    pm.collectionVariables.set('createdMovieId', res.data.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"MISSION: IMPOSSIBLE - THE FINAL RECKONING\",\n  \"tagline\": \"Every choice leads to this.\",\n  \"synopsis\": \"Ethan Hunt và đội IMF đối mặt với trí tuệ nhân tạoThe Entity trong nhiệm vụ sinh tử cuối cùng.\",\n  \"director\": \"Christopher McQuarrie\",\n  \"cast\": [\"Tom Cruise\", \"Hayley Atwell\", \"Ving Rhames\"],\n  \"genres\": [\"Hành động\", \"Gián điệp\", \"Phiêu lưu\"],\n  \"formats\": [\"IMAX\", \"4DX\", \"2D Phụ đề\"],\n  \"durationMinutes\": 163,\n  \"ageRating\": \"T16\",\n  \"status\": \"COMING_SOON\",\n  \"rating\": 9.1,\n  \"posterUrl\": \"https://image.tmdb.org/t/p/w780/NNxYkU70HPurnNCSiCjYAmacwm.jpg\",\n  \"backdropUrl\": \"https://image.tmdb.org/t/p/w1280/628Dep6AxEtDxjZoGP78TsOxYbK.jpg\",\n  \"trailerVideoUrl\": \"https://www.youtube.com/embed/avz06PDqDbM\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/movies",
+              "host": ["{{baseUrl}}"],
+              "path": ["movies"]
+            }
+          }
+        },
+        {
+          "name": "2.4 Get All Showtimes (Tự động lưu showtimeId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Danh sách suất chiếu không rỗng và lưu showtimeId', function () {",
+                  "    pm.expect(res.data).to.be.an('array').that.is.not.empty;",
+                  "    pm.collectionVariables.set('showtimeId', res.data[0].id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/showtimes",
+              "host": ["{{baseUrl}}"],
+              "path": ["showtimes"]
+            }
+          }
+        },
+        {
+          "name": "2.5 Get Showtime SeatMap 56 ghế + Lazy Check (/showtimes/{{showtimeId}})",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Suất chiếu có đúng 56 ghế (32 STANDARD + 16 VIP + 8 COUPLE)', function () {",
+                  "    pm.expect(res.data.seats).to.be.an('array').with.lengthOf(56);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/showtimes/{{showtimeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["showtimes", "{{showtimeId}}"]
+            }
+          }
+        },
+        {
+          "name": "2.6 [Admin] Create Showtime Hợp lệ — Sinh 56 ghế + Tính endTime (+15p dọn rạp)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Tự động khởi tạo 56 ghế và lưu newShowtimeId', function () {",
+                  "    pm.expect(res.data.seats).to.have.lengthOf(56);",
+                  "    pm.collectionVariables.set('newShowtimeId', res.data.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"movieId\": \"{{movieId}}\",\n  \"roomName\": \"Cinema 04 - QA Test Room\",\n  \"format\": \"IMAX\",\n  \"startTime\": \"2027-06-15T18:00:00\",\n  \"basePrice\": 100000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/showtimes",
+              "host": ["{{baseUrl}}"],
+              "path": ["showtimes"]
+            }
+          }
+        },
+        {
+          "name": "2.7 [Negative - Thuật toán 1] Create Showtime Trùng lịch chiếu cùng phòng (409 Conflict)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Trả về 409 Conflict khi trùng khoảng thời gian chiếu + 15p dọn rạp tại cùng phòng', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"movieId\": \"{{movieId}}\",\n  \"roomName\": \"Cinema 04 - QA Test Room\",\n  \"format\": \"IMAX\",\n  \"startTime\": \"2027-06-15T19:00:00\",\n  \"basePrice\": 100000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/showtimes",
+              "host": ["{{baseUrl}}"],
+              "path": ["showtimes"]
+            }
+          }
+        },
+        {
+          "name": "2.8 [Negative - Boundary] Create Showtime Giá vé < 50.000đ (400 Bad Request)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Trả về 400 Bad Request khi basePrice < 50.000đ', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"movieId\": \"{{movieId}}\",\n  \"roomName\": \"Cinema 04 - QA Test Room\",\n  \"format\": \"2D\",\n  \"startTime\": \"2027-06-16T10:00:00\",\n  \"basePrice\": 40000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/showtimes",
+              "host": ["{{baseUrl}}"],
+              "path": ["showtimes"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03. Core Booking & Hold Seats — Thuật toán 2 (Orphan Seat) & Thuật toán 3 (Atomic Lock)",
+      "description": "Kiểm thử Phân tích giá trị biên (0 ghế, 9 ghế), Thuật toán 2 kiểm tra ghế trống lẻ 1 ghế ở bìa hoặc ở giữa (400 Bad Request), Thuật toán 3 giữ ghế Atomic Lock (201 Created) và chống Race Condition khi đặt trùng ghế đang LOCKED (409 Conflict).",
+      "item": [
+        {
+          "name": "3.1 [Boundary] Hold 0 ghế — Danh sách rỗng (400 Bad Request)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Trả về 400 Bad Request khi chọn 0 ghế', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"showtimeId\": \"{{newShowtimeId}}\",\n  \"seatCodes\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/hold",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "hold"]
+            }
+          }
+        },
+        {
+          "name": "3.2 [Boundary] Hold 9 ghế — Vượt quá giới hạn 8 ghế/giao dịch (400 Bad Request)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Trả về 400 Bad Request khi chọn 9 ghế (> 8 ghế tối đa)', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"showtimeId\": \"{{newShowtimeId}}\",\n  \"seatCodes\": [\"A1\", \"A2\", \"A3\", \"A4\", \"A5\", \"A6\", \"A7\", \"A8\", \"B1\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/hold",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "hold"]
+            }
+          }
+        },
+        {
+          "name": "3.3 [Thuật toán 2 - Orphan Seat] Chừa 1 ghế trống ở bìa trái A1 khi đặt A2 (400 Bad Request)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Trả về 400 Bad Request do vi phạm quy tắc ghế trống lẻ ở bìa trái (A1)', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Thông báo lỗi nêu rõ ghế lẻ A1', function () {",
+                  "    pm.expect(res.message).to.include('A1');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"showtimeId\": \"{{newShowtimeId}}\",\n  \"seatCodes\": [\"A2\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/hold",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "hold"]
+            }
+          }
+        },
+        {
+          "name": "3.4 [Thuật toán 2 - Orphan Seat] Chừa 1 ghế trống ở giữa A2 khi đặt A1, A3 (400 Bad Request)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Trả về 400 Bad Request do vi phạm quy tắc ghế trống lẻ ở giữa (A2)', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Thông báo lỗi nêu rõ ghế lẻ A2', function () {",
+                  "    pm.expect(res.message).to.include('A2');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"showtimeId\": \"{{newShowtimeId}}\",\n  \"seatCodes\": [\"A1\", \"A3\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/hold",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "hold"]
+            }
+          }
+        },
+        {
+          "name": "3.5 [Thuật toán 3 - Atomic Lock] Hold 2 ghế VIP E1, E2 Hợp lệ (201 Created -> Lưu bookingId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Đơn hàng ở trạng thái PENDING, tính đúng giá VIP (+20%) và lưu bookingId', function () {",
+                  "    pm.expect(res.data.status).to.eql('PENDING');",
+                  "    pm.expect(res.data.originalAmount).to.eql(240000);",
+                  "    pm.collectionVariables.set('bookingId', res.data.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"showtimeId\": \"{{newShowtimeId}}\",\n  \"seatCodes\": [\"E1\", \"E2\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/hold",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "hold"]
+            }
+          }
+        },
+        {
+          "name": "3.6 [Thuật toán 3 - Race Condition] Đặt trùng ghế E1 đang LOCKED (409 Conflict)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Trả về 409 Conflict khi ghế E1 đã bị người khác giữ chỗ (LOCKED)', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"showtimeId\": \"{{newShowtimeId}}\",\n  \"seatCodes\": [\"E1\", \"E2\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/hold",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "hold"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04. Vouchers — Thuật toán 4 (Decision Table & Capped Discount)",
+      "description": "Kiểm thử Bảng quyết định (Decision Table) cho mã giảm giá:\n- Mã FIXED (`GIAM50K`)\n- Mã PERCENT chạm trần `maxDiscountAmount` (`VIP50PT` giảm 50% tối đa 80.000đ)\n- Mã hết hạn (`EXPIRED10` -> 400)\n- Mã chưa tới ngày mở (`FUTURE50` -> 400)\n- Mã hết lượt dùng (`SOLDOUT99` -> 400)",
+      "item": [
+        {
+          "name": "4.1 Get All Vouchers (/vouchers)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Trả về danh sách voucher khả dụng', function () {",
+                  "    pm.expect(res.data).to.be.an('array').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vouchers",
+              "host": ["{{baseUrl}}"],
+              "path": ["vouchers"]
+            }
+          }
+        },
+        {
+          "name": "4.2 [Rule 1 - FIXED] Áp dụng mã GIAM50K cho đơn 240.000đ -> Giảm 50.000đ còn 190.000đ",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Giảm đúng 50.000đ, finalAmount còn 190.000đ', function () {",
+                  "    pm.expect(res.data.discountAmount).to.eql(50000);",
+                  "    pm.expect(res.data.finalAmount).to.eql(190000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": \"{{bookingId}}\",\n  \"voucherCode\": \"GIAM50K\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/apply-voucher",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "apply-voucher"]
+            }
+          }
+        },
+        {
+          "name": "4.3 [Rule 2 - PERCENT Capped] Áp dụng mã VIP50PT (Giảm 50% đơn 240k = 120k, chạm trần 80k)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Giảm chạm mức trần maxDiscountAmount = 80.000đ, finalAmount = 160.000đ', function () {",
+                  "    pm.expect(res.data.discountAmount).to.eql(80000);",
+                  "    pm.expect(res.data.finalAmount).to.eql(160000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": \"{{bookingId}}\",\n  \"voucherCode\": \"VIP50PT\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/apply-voucher",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "apply-voucher"]
+            }
+          }
+        },
+        {
+          "name": "4.4 [Rule 3 - Expired] Áp dụng mã EXPIRED10 đã hết hạn (400 Bad Request)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Trả về 400 Bad Request khi mã giảm giá đã hết hạn', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": \"{{bookingId}}\",\n  \"voucherCode\": \"EXPIRED10\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/apply-voucher",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "apply-voucher"]
+            }
+          }
+        },
+        {
+          "name": "4.5 [Rule 4 - Future] Áp dụng mã FUTURE50 chưa đến ngày bắt đầu (400 Bad Request)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Trả về 400 Bad Request khi mã giảm giá chưa tới thời gian áp dụng', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": \"{{bookingId}}\",\n  \"voucherCode\": \"FUTURE50\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/apply-voucher",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "apply-voucher"]
+            }
+          }
+        },
+        {
+          "name": "4.6 [Rule 5 - Sold Out] Áp dụng mã SOLDOUT99 đã hết lượt sử dụng (400 Bad Request)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Trả về 400 Bad Request khi usedCount >= usageLimit', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": \"{{bookingId}}\",\n  \"voucherCode\": \"SOLDOUT99\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/apply-voucher",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "apply-voucher"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05. Payment Webhook & QR Check-in (Thanh toán & Soát vé QR 1 lần)",
+      "description": "Kiểm thử luồng giả lập cổng thanh toán (`SUCCESS` / `FAILED`) và máy quét QR tại rạp của nhân viên (`STAFF`/`ADMIN`):\n- Thanh toán `SUCCESS` -> Đơn chuyển sang `PAID`, ghế chuyển sang `BOOKED`, sinh `qrCode` duy nhất.\n- Quét QR lần 1 -> `200 OK` (`CHECKED_IN`).\n- Quét QR lần 2 cùng mã -> `409 Conflict` (Vé đã được sử dụng).\n- Thanh toán `FAILED` -> Đơn chuyển sang `CANCELLED`, giải phóng ghế về `AVAILABLE`.",
+      "item": [
+        {
+          "name": "5.1 Mock Payment SUCCESS (200 OK -> Đơn PAID, sinh qrCode)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Đơn hàng chuyển sang PAID và sinh mã qrCode', function () {",
+                  "    pm.expect(res.data.status).to.eql('PAID');",
+                  "    pm.expect(res.data.qrCode).to.be.a('string').and.not.empty;",
+                  "    pm.collectionVariables.set('qrCode', res.data.qrCode);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": \"{{bookingId}}\",\n  \"paymentStatus\": \"SUCCESS\",\n  \"customerName\": \"Nguyễn Văn Khách\",\n  \"customerEmail\": \"customer@cinema.com\",\n  \"customerPhone\": \"0909123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/mock",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "mock"]
+            }
+          }
+        },
+        {
+          "name": "5.2 [Staff] QR Check-in Lần 1 Hợp lệ (200 OK -> CHECKED_IN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 200 OK khi quét QR lần đầu', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Trạng thái vé chuyển sang CHECKED_IN', function () {",
+                  "    pm.expect(res.data.status).to.eql('CHECKED_IN');",
+                  "    pm.expect(res.data.checkedInAt).to.not.be.null;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{staffToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qrCode\": \"{{qrCode}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/check-in",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "check-in"]
+            }
+          }
+        },
+        {
+          "name": "5.3 [Staff - Negative] QR Check-in Lần 2 Cùng Mã QR (409 Conflict - Chống dùng lại vé)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Trả về 409 Conflict khi quét lại mã QR đã CHECKED_IN', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{staffToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qrCode\": \"{{qrCode}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/check-in",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "check-in"]
+            }
+          }
+        },
+        {
+          "name": "5.4 Hold 2 ghế F1, F2 để test thanh toán FAILED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.collectionVariables.set('cancelBookingId', res.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"showtimeId\": \"{{newShowtimeId}}\",\n  \"seatCodes\": [\"F1\", \"F2\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/hold",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "hold"]
+            }
+          }
+        },
+        {
+          "name": "5.5 Mock Payment FAILED -> Đơn CANCELLED & Giải phóng ghế F1, F2 về AVAILABLE",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Đơn hàng chuyển sang CANCELLED', function () {",
+                  "    pm.expect(res.data.status).to.eql('CANCELLED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{customerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": \"{{cancelBookingId}}\",\n  \"paymentStatus\": \"FAILED\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/mock",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "mock"]
+            }
+          }
+        },
+        {
+          "name": "5.6 Get My Bookings (/bookings/my-bookings)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Lịch sử đặt vé của Customer không rỗng', function () {",
+                  "    pm.expect(res.data).to.be.an('array').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/bookings/my-bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "my-bookings"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "06. Security Edge Case — Khóa tài khoản khi JWT còn hạn (403 Forbidden)",
+      "description": "Kiểm thử kịch bản bảo mật quan trọng trong `HD.md`:\n1. User `testlock@cinema.com` đã đăng nhập ở Bước 1.4 và có `lockedUserToken` còn hạn.\n2. Admin khóa tài khoản `testlock@cinema.com` (`isActive = false`).\n3. User dùng `lockedUserToken` gọi API giữ ghế -> Hệ thống chặn ngay tại `JwtAuthenticationFilter` và trả về `403 Forbidden`.\n4. Admin mở khóa lại tài khoản (`isActive = true`) để có thể chạy lại Collection nhiều lần.",
+      "item": [
+        {
+          "name": "6.1 [Admin] Khóa tài khoản testlock@cinema.com (isActive = false)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Trạng thái user isActive chuyển thành false', function () {",
+                  "    pm.expect(res.data.active).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/users/{{lockedUserId}}/status?isActive=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "users", "{{lockedUserId}}", "status"],
+              "query": [{ "key": "isActive", "value": "false" }]
+            }
+          }
+        },
+        {
+          "name": "6.2 [Locked User] Gọi API đặt ghế với JWT còn hạn -> Bị chặn 403 Forbidden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Trả về 403 Forbidden ngay lập tức dù JWT vẫn còn hạn', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{lockedUserToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"showtimeId\": \"{{newShowtimeId}}\",\n  \"seatCodes\": [\"G1\", \"G2\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/hold",
+              "host": ["{{baseUrl}}"],
+              "path": ["bookings", "hold"]
+            }
+          }
+        },
+        {
+          "name": "6.3 [Admin] Mở khóa lại tài khoản testlock@cinema.com (isActive = true)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Khôi phục trạng thái active = true thành công', function () {",
+                  "    pm.expect(res.data.active).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/auth/users/{{lockedUserId}}/status?isActive=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "users", "{{lockedUserId}}", "status"],
+              "query": [{ "key": "isActive", "value": "true" }]
+            }
+          }
+        },
+        {
+          "name": "6.4 [Cleanup - Admin] Xóa suất chiếu test ({{newShowtimeId}})",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code là 200 OK khi dọn dẹp suất chiếu test', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/showtimes/{{newShowtimeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["showtimes", "{{newShowtimeId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
